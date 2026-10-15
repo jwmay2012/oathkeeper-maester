@@ -133,7 +133,9 @@ jobs:
         run: make docker-build-notest
 
   release:
-    if: ${{ github.ref_type == 'tag' }}
+    if:
+      ${{ github.repository == 'ory/oathkeeper-maester' && github.ref_type ==
+      'tag' }}
     needs:
       - test-build
       - test-integration
