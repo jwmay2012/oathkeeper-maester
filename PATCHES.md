@@ -4,6 +4,10 @@ This fork follows released upstream Oathkeeper Maester tags. The current base is
 `v0.1.14`. The upstream default branch and historical tags remain separate from
 the release patch series.
 
+GitHub Actions are disabled for this fork. Release verification runs locally:
+build the images, run the tests and vulnerability scans, then validate the
+candidate before publishing it. Workflow files remain as upstream reference.
+
 Use `release/v<upstream-version>-custom.<revision>` branches. Keep fork CI setup
 in the first commit, followed by isolated fixes and their regression tests.
 Feature PRs target the release branch and should be independently suitable for
@@ -12,9 +16,9 @@ requires the upstream registry credentials.
 
 The initial candidate inherited dependency advisories from the upstream release.
 The separate security update upgrades `golang.org/x/net` and its required
-dependencies without changing Kubernetes or controller-runtime versions, and
-re-enables the image-scanner workflow. Run `govulncheck ./...` and scan each
-built image before release; retain those reports with the test results.
+dependencies without changing Kubernetes or controller-runtime versions. Run
+`govulncheck ./...` and scan each built image before release; retain those
+reports with the test results.
 
 Do not include deployment-specific configuration, bundled source patches, or
 unrelated dependency and formatting changes. Keep the upstream build files
