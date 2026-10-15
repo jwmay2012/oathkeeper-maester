@@ -10,10 +10,11 @@ Feature PRs target the release branch and should be independently suitable for
 upstream submission. Upstream image publishing is skipped in forks because it
 requires the upstream registry credentials.
 
-The automatic image-scanner workflow is restricted to upstream. Scans of the
-unchanged release dependencies reported high/critical advisories; disabling the
-automatic gate does not resolve those findings or constitute security approval.
-Retain the reports for dependency review before production promotion.
+The initial candidate inherited dependency advisories from the upstream release.
+The separate security update upgrades `golang.org/x/net` and its required
+dependencies without changing Kubernetes or controller-runtime versions, and
+re-enables the image-scanner workflow. Run `govulncheck ./...` and scan each
+built image before release; retain those reports with the test results.
 
 Do not include deployment-specific configuration, bundled source patches, or
 unrelated dependency and formatting changes. Keep the upstream build files
