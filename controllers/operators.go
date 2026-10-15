@@ -4,10 +4,11 @@
 package controllers
 
 import (
-	"bufio"
+	"bytes"
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/avast/retry-go"
 	"github.com/go-logr/logr"
@@ -118,21 +119,38 @@ func (cmo *ConfigMapOperator) CreateOrUpdate(ctx context.Context, oathkeeperRule
 }
 
 func (fo *FilesOperator) updateOrCreateRulesFile(ctx context.Context, data string) error {
-	var f *os.File
-	f, err := os.Create(fo.RulesFilePath)
-	if err != nil {
-		fo.Log.Error(err, "error while creating config file")
+	if previous, err := os.ReadFile(fo.RulesFilePath); err == nil && bytes.Equal(previous, []byte(data)) {
+		return nil
+	}
+	mode := os.FileMode(0644)
+	if info, err := os.Stat(fo.RulesFilePath); err == nil {
+		mode = info.Mode().Perm()
+	} else if !os.IsNotExist(err) {
 		return err
 	}
-	defer f.Close()
-	w := bufio.NewWriter(f)
-	byteCount, err := w.WriteString(data)
-	fo.Log.Info(fmt.Sprintf("writing %d bytes of data into %s", byteCount, fo.RulesFilePath))
-	w.Flush()
+
+	// Publish a complete snapshot without truncating the watched file.
+	f, err := os.CreateTemp(filepath.Dir(fo.RulesFilePath), ".access-rules-*")
 	if err != nil {
-		fo.Log.Error(err, "error while writing to file")
 		return err
 	}
+	defer func() {
+		_ = f.Close()
+		_ = os.Remove(f.Name())
+	}()
+	if err := f.Chmod(mode); err != nil {
+		return err
+	}
+	if _, err := f.WriteString(data); err != nil {
+		return err
+	}
+	if err := f.Close(); err != nil {
+		return err
+	}
+	if err := os.Rename(f.Name(), fo.RulesFilePath); err != nil {
+		return err
+	}
+	fo.Log.Info(fmt.Sprintf("published %d bytes of rules into %s", len(data), fo.RulesFilePath))
 	return nil
 }
 
