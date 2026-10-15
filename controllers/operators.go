@@ -4,6 +4,7 @@
 package controllers
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os"
@@ -118,6 +119,9 @@ func (cmo *ConfigMapOperator) CreateOrUpdate(ctx context.Context, oathkeeperRule
 }
 
 func (fo *FilesOperator) updateOrCreateRulesFile(ctx context.Context, data string) error {
+	if previous, err := os.ReadFile(fo.RulesFilePath); err == nil && bytes.Equal(previous, []byte(data)) {
+		return nil
+	}
 	mode := os.FileMode(0644)
 	if info, err := os.Stat(fo.RulesFilePath); err == nil {
 		mode = info.Mode().Perm()

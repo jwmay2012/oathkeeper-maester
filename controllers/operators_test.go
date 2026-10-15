@@ -14,6 +14,8 @@ import (
 	"testing"
 
 	"github.com/go-logr/logr"
+	oathkeeperv1alpha1 "github.com/ory/oathkeeper-maester/api/v1alpha1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func fileOperator(t *testing.T) *FilesOperator {
@@ -112,5 +114,59 @@ func TestRulesFileWriteFailurePreservesExistingPath(t *testing.T) {
 	info, err := os.Stat(operator.RulesFilePath)
 	if err != nil || !info.IsDir() {
 		t.Fatalf("failed write changed the existing target: %v, %v", info, err)
+	}
+}
+
+func TestRulesFileUnchangedDoesNotTriggerReload(t *testing.T) {
+	operator := fileOperator(t)
+	rules := `[{"id":"same"}]`
+	if err := operator.updateOrCreateRulesFile(context.Background(), rules); err != nil {
+		t.Fatal(err)
+	}
+	before, err := os.Stat(operator.RulesFilePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := operator.updateOrCreateRulesFile(context.Background(), rules); err != nil {
+		t.Fatal(err)
+	}
+	after, err := os.Stat(operator.RulesFilePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !os.SameFile(before, after) || !before.ModTime().Equal(after.ModTime()) {
+		t.Fatal("identical rules rewrote the watched file")
+	}
+}
+
+func TestRulesFileRuleOrderDoesNotTriggerReload(t *testing.T) {
+	operator := fileOperator(t)
+	rules := oathkeeperv1alpha1.RuleList{Items: []oathkeeperv1alpha1.Rule{
+		{ObjectMeta: metav1.ObjectMeta{Name: "first", Namespace: "test"}},
+		{ObjectMeta: metav1.ObjectMeta{Name: "second", Namespace: "test"}},
+	}}
+	writeRules := func() {
+		t.Helper()
+		data, err := rules.ToOathkeeperRules()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := operator.CreateOrUpdate(context.Background(), data, nil); err != nil {
+			t.Fatal(err)
+		}
+	}
+	writeRules()
+	before, err := os.Stat(operator.RulesFilePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rules.Items[0], rules.Items[1] = rules.Items[1], rules.Items[0]
+	writeRules()
+	after, err := os.Stat(operator.RulesFilePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !os.SameFile(before, after) || !before.ModTime().Equal(after.ModTime()) {
+		t.Fatal("a reordered list of unchanged Rules rewrote the watched file")
 	}
 }
