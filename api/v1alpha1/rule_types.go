@@ -5,6 +5,7 @@ package v1alpha1
 
 import (
 	"fmt"
+	"sort"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -137,6 +138,8 @@ func (rl RuleList) ToOathkeeperRules() ([]byte, error) {
 	for i := range rl.Items {
 		rules[i] = rl.Items[i].ToRuleJSON()
 	}
+	// Cache list order is unspecified; identical Rules must render identically.
+	sort.Slice(rules, func(i, j int) bool { return rules[i].ID < rules[j].ID })
 
 	return unescapedMarshalIndent(rules, "", "  ")
 }
