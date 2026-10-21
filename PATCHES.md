@@ -1,5 +1,11 @@
 # Release patch series
 
+The October 21 packaging commit pins Go 1.26.10 and the existing distroless
+Debian 13 runtime by digest. The runtime receives the builder's clean CA bundle
+because distroless still carries the affected roots. This complements Go's
+eMudhra intermediate blocklist without changing application code or dependencies.
+Drop this isolated commit when upstream supplies equivalent trust handling.
+
 This fork follows released upstream Oathkeeper Maester tags. The current base is
 `v0.1.14`. The upstream default branch and historical tags remain separate from
 the release patch series.
